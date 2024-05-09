@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ethereum Data Fetcher</title>
+    <script>
+
+        // Example function to fetch points for a given protocol
+        async function fetchSwellPearls(address) {
+           
+            const url =  'https://corsproxy.io/?' + encodeURIComponent(`https://v3-lst.svc.swellnetwork.io/swell.v3.VoyageService/VoyageUser?connect=v1&encoding=json&message=%7B"address"%3A"${address}"%7D`); //`https://v3-lst.svc.swellnetwork.io/swell.v3.VoyageService/VoyageUser?connect=v1&encoding=json&message=%7B"address"%3A"${address}"%7D`;
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data.points;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        async function fetchRenzoPoints(address) {
+            const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://app.renzoprotocol.com/api/points/${address}`);
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data.data.totals.renzoPoints;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        async function fetchEthenaPoints(address) {
+            const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://app.ethena.fi/api/referral/get-referree?address=${address}`);
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data.queryWallet[0].accumulatedTotalShardsEarned;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        async function fetchZircuitPoints(address) {
+            const url = `https://stake.zircuit.com/api/points/${address}`;
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data.totalPoints
+            } catch (e) {
+                return 0;
+            }
+        }   
+
+        async function fetchEtherFiPoints(address) {
+            const url = 'https://corsproxy.io/?' + encodeURIComponent(`https://app.ether.fi/api/portfolio/v3/${address}`);
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data.data.totalPoints;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        async function fetchEigenlayerPoints(address) {
+            const url = `https://app.eigenlayer.xyz/api/trpc/operator.getIsDelegatedToBlocklist,operator.getOperatorSummary,tokenStaking.getRestakingPoints,userAgreement.getUserAgreement?batch=1&input=%7B%220%22%3A%7B%22json%22%3A%220x0000000000000000000000000000000000000000%22%7D%2C%221%22%3A%7B%22json%22%3A%7B%22address%22%3A%220x0000000000000000000000000000000000000000%22%2C%22delegateAddress%22%3A%220x0000000000000000000000000000000000000000%22%7D%7D%2C%222%22%3A%7B%22json%22%3A%7B%22staker%22%3A%220x410e08b3e64aac18ae18f2c5066d26e848ac8b9c%22%7D%7D%2C%223%22%3A%7B%22json%22%3A%7B%22address%22%3A%22${address}%22%7D%7D%7D`;
+            const response = await fetch(url);
+            const data = await response.json();
+            try{
+                return data[2].result.data.json.reduce((acc, curr) => acc + curr.integratedShares);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+
+        function handleFetchClick() {
+            console.log('Fetching data...')
+            // grab address from input
+            const address = document.getElementById('ethAddress').value;
+
+            // Define the fetch calls for each protocol
+            const SwellPearls = fetchSwellPearls(address).then(data => ({ name: 'Swell', points: Number(data).toLocaleString() }));
+            const RenzoPoints = fetchRenzoPoints(address).then(data => ({ name: 'Renzo', points: Number(data).toLocaleString() }));
+            const EthenaPoints = fetchEthenaPoints(address).then(data => ({ name: 'Ethena', points: Number(data).toLocaleString() }));
+            const ZircuitPoints = fetchZircuitPoints(address).then(data => ({ name: 'Zircuit', points: Number(data).toLocaleString() }));
+            const EtherFiPoints = fetchEtherFiPoints(address).then(data => ({ name: 'EtherFi', points: Number(data).toLocaleString() }));
+            // const EigenlayerPoints = fetchEigenlayerPoints(address).then(data => ({ name: 'Eigenlayer', points: Number(data).toLocaleString() }));
+
+            // Execute all fetches and handle them when all are done
+            Promise.all([SwellPearls, RenzoPoints, EthenaPoints, ZircuitPoints, EtherFiPoints ]) //, EigenlayerPoints])
+                .then(results => {
+                    // Sort results by protocol name
+                    results.sort((a, b) => a.name.localeCompare(b.name));
+
+                    // Build the table with sorted results
+                    let tableToAppend = '<table><tr><th>Protocol</th><th>Points</th></tr>';
+                    results.forEach(result => {
+                        tableToAppend += `<tr><td>${result.name}</td><td>${result.points}</td></tr>`;
+                    });
+                    tableToAppend += '</table>';
+
+                    // Set the innerHTML of the data display to the sorted table
+                    document.getElementById('dataDisplay').innerHTML = tableToAppend;
+                })
+                .catch(err => {
+                    console.error(err);
+                    // Handle errors, maybe display a message
+                    document.getElementById('dataDisplay').innerHTML = '<p>Error loading data.</p>';
+                });
+        }
+
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Ethereum Address Data</h1>
+        <p>Enter an Ethereum address to fetch data:</p>
+        <input type="text" id="ethAddress" placeholder="Enter Ethereum address">
+        <button onclick="handleFetchClick()">Fetch Data</button>
+    </header>
+
+    <main>
+        <section>
+            <h2>Data Breakdown</h2>
+            <!-- You can add elements here where the data will be displayed -->
+            <div id="dataDisplay"></div>
+        </section>
+    </main>
+</body>
+</html>
+
+
+<!--
+    swell       Finished
+    etherfi     Finished
+    renzo       Finished
+    karak       ToDo
+    ethena      Finished
+    zircuit     Finished
+    Eigenlayer  ToDo
+-->
